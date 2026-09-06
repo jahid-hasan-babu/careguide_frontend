@@ -64,7 +64,19 @@ export const postsSlice = createSlice({
       state.loading = false;
       state.posts = action.payload.data;
       if (action.payload.meta) {
-        state.meta = action.payload.meta;
+        const m = action.payload.meta as any;
+        const total = m.total ?? action.payload.data.length;
+        const limit = m.limit || state.meta.limit || 10;
+        const totalPages = m.totalPages || m.totalPage || Math.max(1, Math.ceil(total / limit));
+        state.meta = {
+          page: m.page || 1,
+          limit,
+          total,
+          totalPages,
+        };
+      } else {
+        state.meta.total = action.payload.data.length;
+        state.meta.totalPages = Math.max(1, Math.ceil(action.payload.data.length / state.meta.limit));
       }
     });
     builder.addCase(fetchPosts.rejected, (state, action) => {
@@ -81,6 +93,7 @@ export const postsSlice = createSlice({
       state.submitting = false;
       state.posts.unshift(action.payload);
       state.meta.total += 1;
+      state.meta.totalPages = Math.max(1, Math.ceil(state.meta.total / state.meta.limit));
     });
     builder.addCase(createPost.rejected, (state, action) => {
       state.submitting = false;
