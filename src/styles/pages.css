@@ -356,6 +356,14 @@
   white-space: pre-wrap;
 }
 
+/* Profile Page Grid Layout */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 1.75rem;
+  align-items: start;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .app-layout {
@@ -370,6 +378,9 @@
     padding: 1.25rem;
   }
   .notes-grid {
+    grid-template-columns: 1fr;
+  }
+  .profile-grid {
     grid-template-columns: 1fr;
   }
 }

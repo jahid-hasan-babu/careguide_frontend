@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ShieldCheck, Key, Plus, X, Save } from "lucide-react";
+import { User, ShieldCheck, Key, Plus, X, Save } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
 import { updateProfileLocally } from "../../../redux/slices/authSlice";
 import { showToast } from "../../../redux/slices/toastSlice";
@@ -89,7 +89,7 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div style={{ maxWidth: 800 }}>
+    <div>
       <div className="page-header">
         <div className="page-title-group">
           <h1>Account Profile & Security</h1>
@@ -97,26 +97,32 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Profile Overview Card */}
-      <div className="card" style={{ marginBottom: "2rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", marginBottom: "1.5rem" }}>
-          <div className="user-avatar-circle" style={{ width: 60, height: 60, fontSize: "1.5rem" }}>
-            {user.fullName ? user.fullName[0].toUpperCase() : "U"}
+      <div className="profile-grid">
+        {/* Profile Overview & Details Card */}
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1.25rem" }}>
+            <User size={20} color="var(--primary)" />
+            <h3>Profile Information</h3>
           </div>
-          <div>
-            <h2 style={{ fontSize: "1.4rem" }}>{user.fullName}</h2>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{user.email}</span>
-              <span className={`badge badge-${user.role.toLowerCase()}`}>{user.role}</span>
-              {user.isVerified && (
-                <span className="badge badge-verified" style={{ gap: "0.25rem" }}>
-                  <ShieldCheck size={12} />
-                  Verified
-                </span>
-              )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", marginBottom: "1.5rem" }}>
+            <div className="user-avatar-circle" style={{ width: 60, height: 60, fontSize: "1.5rem" }}>
+              {user.fullName ? user.fullName[0].toUpperCase() : "U"}
+            </div>
+            <div>
+              <h2 style={{ fontSize: "1.3rem" }}>{user.fullName}</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>
+                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{user.email}</span>
+                <span className={`badge badge-${user.role.toLowerCase()}`}>{user.role}</span>
+                {user.isVerified && (
+                  <span className="badge badge-verified" style={{ gap: "0.25rem" }}>
+                    <ShieldCheck size={12} />
+                    Verified
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Update Profile Form */}
         <form onSubmit={handleUpdateProfile}>
@@ -260,5 +266,6 @@ export default function ProfilePage() {
         </form>
       </div>
     </div>
-  );
+  </div>
+);
 }
