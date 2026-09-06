@@ -90,7 +90,19 @@ export const notesSlice = createSlice({
       state.loading = false;
       state.notes = action.payload.data;
       if (action.payload.meta) {
-        state.meta = action.payload.meta;
+        const m = action.payload.meta as any;
+        const total = m.total ?? action.payload.data.length;
+        const limit = m.limit || state.meta.limit || 12;
+        const totalPages = m.totalPages || m.totalPage || Math.max(1, Math.ceil(total / limit));
+        state.meta = {
+          page: m.page || 1,
+          limit,
+          total,
+          totalPages,
+        };
+      } else {
+        state.meta.total = action.payload.data.length;
+        state.meta.totalPages = Math.max(1, Math.ceil(action.payload.data.length / state.meta.limit));
       }
     });
     builder.addCase(fetchNotes.rejected, (state, action) => {
@@ -107,6 +119,7 @@ export const notesSlice = createSlice({
       state.submitting = false;
       state.notes.unshift(action.payload);
       state.meta.total += 1;
+      state.meta.totalPages = Math.max(1, Math.ceil(state.meta.total / state.meta.limit));
     });
     builder.addCase(createNote.rejected, (state, action) => {
       state.submitting = false;
@@ -134,6 +147,7 @@ export const notesSlice = createSlice({
     builder.addCase(deleteNote.fulfilled, (state, action) => {
       state.notes = state.notes.filter((n) => n._id !== action.payload);
       state.meta.total = Math.max(0, state.meta.total - 1);
+      state.meta.totalPages = Math.max(1, Math.ceil(state.meta.total / state.meta.limit));
     });
   },
 });

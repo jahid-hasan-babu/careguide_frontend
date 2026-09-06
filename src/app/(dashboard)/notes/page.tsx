@@ -23,20 +23,23 @@ export default function NotesPage() {
   const isAdmin = user?.role === "ADMIN";
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(12);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<INote | null>(null);
   const [deletingNote, setDeletingNote] = useState<INote | null>(null);
 
   const loadNotes = useCallback(
-    (page: number = 1) => {
-      dispatch(fetchNotes({ page, limit: 12 }));
+    (page: number = 1, pageLimit: number = limit) => {
+      setCurrentPage(page);
+      dispatch(fetchNotes({ page, limit: pageLimit }));
     },
-    [dispatch]
+    [dispatch, limit]
   );
 
   useEffect(() => {
-    loadNotes(1);
-  }, [loadNotes]);
+    loadNotes(1, limit);
+  }, [loadNotes, limit]);
 
   const handleCreateOrUpdate = async (payload: { title: string; content: string }) => {
     if (editingNote) {
@@ -68,9 +71,32 @@ export default function NotesPage() {
       n.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const totalCount = meta?.total ?? notes.length;
+  const currentLimit = meta?.limit || limit;
+  const totalPages = Math.max(1, meta?.totalPages || Math.ceil(totalCount / currentLimit));
+  const activePage = meta?.page || currentPage;
+  const startIndex = totalCount === 0 ? 0 : (activePage - 1) * currentLimit + 1;
+  const endIndex = Math.min(activePage * currentLimit, totalCount);
+
+  const getPageNumbers = (): (number | string)[] => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | string)[] = [];
+    if (activePage <= 3) {
+      pages.push(1, 2, 3, 4, "...", totalPages);
+    } else if (activePage >= totalPages - 2) {
+      pages.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, "...", activePage - 1, activePage, activePage + 1, "...", totalPages);
+    }
+    return pages;
+  };
+
   return (
-    <div>
-      <div className="page-header">
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 64px - 4rem)" }}>
+      <div style={{ flex: 1 }}>
+        <div className="page-header">
         <div className="page-title-group">
           <h1>{isAdmin ? "System Note Repository (Admin Mode)" : "My Private Notes"}</h1>
           <p>
@@ -205,26 +231,73 @@ export default function NotesPage() {
           ))}
         </div>
       )}
+      </div>
 
       {/* Pagination Controls */}
-      {meta.totalPages > 1 && (
-        <div className="pagination" style={{ marginTop: "2rem" }}>
-          <div className="pagination-info">
-            Page {meta.page} of {meta.totalPages} (Total {meta.total} records)
+      {totalCount > 0 && (
+        <div className="pagination pagination-fixed">
+          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
+            <div className="pagination-info">
+              Showing <strong>{startIndex} - {endIndex}</strong> of <strong>{totalCount}</strong> notes
+              <span style={{ marginLeft: "0.5rem", color: "var(--text-secondary)" }}>
+                (Page {activePage} of {totalPages})
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              <span>Per page:</span>
+              <select
+                className="form-control"
+                style={{ width: "68px", padding: "0.2rem 0.4rem", fontSize: "0.82rem" }}
+                value={limit}
+                onChange={(e) => {
+                  const newLimit = Number(e.target.value);
+                  setLimit(newLimit);
+                  loadNotes(1, newLimit);
+                }}
+              >
+                <option value={6}>6</option>
+                <option value={12}>12</option>
+                <option value={24}>24</option>
+                <option value={48}>48</option>
+              </select>
+            </div>
           </div>
-          <div className="pagination-controls">
+
+          <div className="pagination-controls" style={{ alignItems: "center" }}>
             <button
               className="btn btn-secondary btn-sm"
-              disabled={meta.page <= 1 || loading}
-              onClick={() => loadNotes(meta.page - 1)}
+              disabled={activePage <= 1 || loading}
+              onClick={() => loadNotes(activePage - 1, limit)}
+              title="Previous Page"
             >
               <ChevronLeft size={16} />
               <span>Previous</span>
             </button>
+
+            {getPageNumbers().map((p, idx) =>
+              p === "..." ? (
+                <span key={`ellipsis-${idx}`} style={{ padding: "0 0.3rem", color: "var(--text-muted)" }}>
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={`page-${p}`}
+                  className={`btn btn-sm ${p === activePage ? "btn-primary" : "btn-secondary"}`}
+                  style={{ minWidth: 32, padding: "0.35rem 0.65rem", fontWeight: p === activePage ? 700 : 500 }}
+                  disabled={loading}
+                  onClick={() => loadNotes(Number(p), limit)}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
             <button
               className="btn btn-secondary btn-sm"
-              disabled={meta.page >= meta.totalPages || loading}
-              onClick={() => loadNotes(meta.page + 1)}
+              disabled={activePage >= totalPages || loading}
+              onClick={() => loadNotes(activePage + 1, limit)}
+              title="Next Page"
             >
               <span>Next</span>
               <ChevronRight size={16} />
