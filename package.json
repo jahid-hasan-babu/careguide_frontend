@@ -3,16 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "oxlint src",
     "docker:build": "docker build -t careguide-frontend:latest .",
-    "docker:run": "docker run -p 3000:3000 careguide-frontend:latest",
+    "docker:run": "docker run -p 3001:3001 careguide-frontend:latest",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:dev": "docker compose -f docker-compose.dev.yml up --build"
-  },
+  }
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",
     "lucide-react": "^1.41.0",
