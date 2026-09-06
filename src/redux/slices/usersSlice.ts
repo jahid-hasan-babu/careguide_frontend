@@ -132,7 +132,19 @@ export const usersSlice = createSlice({
       state.loading = false;
       state.users = action.payload.data;
       if (action.payload.meta) {
-        state.meta = action.payload.meta;
+        const m = action.payload.meta as any;
+        const total = m.total ?? action.payload.data.length;
+        const limit = m.limit || state.meta.limit || 10;
+        const totalPages = m.totalPages || m.totalPage || Math.max(1, Math.ceil(total / limit));
+        state.meta = {
+          page: m.page || 1,
+          limit,
+          total,
+          totalPages,
+        };
+      } else {
+        state.meta.total = action.payload.data.length;
+        state.meta.totalPages = Math.max(1, Math.ceil(action.payload.data.length / state.meta.limit));
       }
     });
     builder.addCase(fetchUsers.rejected, (state, action) => {
@@ -177,6 +189,7 @@ export const usersSlice = createSlice({
       state.submitting = false;
       state.users.unshift(action.payload);
       state.meta.total += 1;
+      state.meta.totalPages = Math.max(1, Math.ceil(state.meta.total / state.meta.limit));
     });
     builder.addCase(createUser.rejected, (state, action) => {
       state.submitting = false;
@@ -204,6 +217,7 @@ export const usersSlice = createSlice({
     builder.addCase(deleteUser.fulfilled, (state, action) => {
       state.users = state.users.filter((u) => u._id !== action.payload);
       state.meta.total = Math.max(0, state.meta.total - 1);
+      state.meta.totalPages = Math.max(1, Math.ceil(state.meta.total / state.meta.limit));
     });
   },
 });

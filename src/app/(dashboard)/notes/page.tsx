@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, ShieldCheck, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Plus, Search, ShieldCheck, ChevronLeft, ChevronRight, FileText, User, Layers } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
 import {
   fetchNotes,
@@ -23,6 +23,7 @@ export default function NotesPage() {
   const isAdmin = user?.role === "ADMIN";
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [onlyMyNotes, setOnlyMyNotes] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(12);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,18 +66,44 @@ export default function NotesPage() {
     }
   };
 
-  const filteredNotes = notes.filter(
-    (n) =>
-      n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredNotes = notes.filter((n) => {
+    if (isAdmin && onlyMyNotes && user) {
+      const noteAuthorId =
+        typeof n.userId === "object" && n.userId !== null
+          ? n.userId._id
+          : n.userId;
+      const noteAuthorEmail =
+        typeof n.userId === "object" && n.userId !== null
+          ? n.userId.email
+          : null;
+      const isMine = Boolean(
+        (user._id && noteAuthorId === user._id) ||
+        (user.email && noteAuthorEmail === user.email)
+      );
+      if (!isMine) return false;
+    }
 
-  const totalCount = meta?.total ?? notes.length;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        n.title.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q)
+      );
+    }
+
+    return true;
+  });
+
+  const totalCount = onlyMyNotes ? filteredNotes.length : (meta?.total ?? notes.length);
   const currentLimit = meta?.limit || limit;
-  const totalPages = Math.max(1, meta?.totalPages || Math.ceil(totalCount / currentLimit));
-  const activePage = meta?.page || currentPage;
+  const totalPages = Math.max(1, Math.ceil(totalCount / currentLimit));
+  const activePage = Math.min(currentPage, totalPages);
   const startIndex = totalCount === 0 ? 0 : (activePage - 1) * currentLimit + 1;
   const endIndex = Math.min(activePage * currentLimit, totalCount);
+
+  const displayedNotes = onlyMyNotes
+    ? filteredNotes.slice((activePage - 1) * currentLimit, activePage * currentLimit)
+    : filteredNotes;
 
   const getPageNumbers = (): (number | string)[] => {
     if (totalPages <= 7) {
@@ -97,140 +124,205 @@ export default function NotesPage() {
     <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 64px - 4rem)" }}>
       <div style={{ flex: 1 }}>
         <div className="page-header">
-        <div className="page-title-group">
-          <h1>{isAdmin ? "System Note Repository (Admin Mode)" : "My Private Notes"}</h1>
-          <p>
-            {isAdmin
-              ? "Full access view: Managing notes across all user accounts in the platform."
-              : `Secure end-to-end notes for ${user?.fullName || "your account"}.`}
-          </p>
-        </div>
-
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setEditingNote(null);
-            setIsModalOpen(true);
-          }}
-        >
-          <Plus size={18} />
-          <span>New Note</span>
-        </button>
-      </div>
-
-      {/* Index & Optimization Technical Notice */}
-      <div className="aggregation-banner">
-        <ShieldCheck size={20} color="var(--primary)" style={{ flexShrink: 0, marginTop: 2 }} />
-        <div style={{ fontSize: "0.85rem" }}>
-          <strong>Query & Indexing Strategy: </strong>
-          {isAdmin ? (
-            <span>
-              Admin list queries utilize the compound index <code>{`{ isDeleted: 1, createdAt: -1 }`}</code> with Mongoose author population.
-            </span>
-          ) : (
-            <span>
-              User queries are backed by compound indexes <code>{`{ userId: 1, createdAt: -1 }`}</code> and <code>{`{ _id: 1, userId: 1 }`}</code> for optimal tenant isolation.
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Search Bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.5rem",
-          gap: "1rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ position: "relative", width: "100%", maxWidth: 360 }}>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search notes by title or content..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Search
-            size={16}
-            color="var(--text-muted)"
-            style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}
-          />
-        </div>
-
-        <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-          Showing <strong>{filteredNotes.length}</strong> of <strong>{meta.total}</strong> notes
-        </div>
-      </div>
-
-      {/* Notes Grid */}
-      {loading && notes.length === 0 ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "4rem 0" }}>
-          <div className="spinner" style={{ width: 32, height: 32 }} />
-        </div>
-      ) : filteredNotes.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            textAlign: "center",
-            padding: "4rem 2rem",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: "var(--radius-full)",
-              background: "rgba(99, 102, 241, 0.1)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--primary)",
-              marginBottom: "1rem",
-            }}
-          >
-            <FileText size={28} />
+          <div className="page-title-group">
+            <h1>
+              {isAdmin
+                ? onlyMyNotes
+                  ? "My Personal Notes (Admin Filter)"
+                  : "System Note Repository (Admin Mode)"
+                : "My Private Notes"}
+            </h1>
+            <p>
+              {isAdmin
+                ? onlyMyNotes
+                  ? `Filtered view: Showing only notes authored by your admin account (${user?.fullName || "Admin"}).`
+                  : "Full access view: Managing notes across all user accounts in the platform."
+                : `Secure end-to-end notes for ${user?.fullName || "your account"}.`}
+            </p>
           </div>
-          <h3>No notes found</h3>
-          <p style={{ maxWidth: 360, marginTop: "0.5rem" }}>
-            {searchQuery
-              ? "No notes matched your search query."
-              : "You have not created any notes yet. Click below to add your first note."}
-          </p>
-          <button
-            className="btn btn-primary"
-            style={{ marginTop: "1.25rem" }}
-            onClick={() => {
-              setEditingNote(null);
-              setIsModalOpen(true);
-            }}
-          >
-            <Plus size={16} />
-            <span>Create First Note</span>
-          </button>
-        </div>
-      ) : (
-        <div className="notes-grid">
-          {filteredNotes.map((note) => (
-            <NoteCard
-              key={note._id}
-              note={note}
-              isAdmin={isAdmin}
-              onEdit={(n) => {
-                setEditingNote(n);
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+            {isAdmin && (
+              <button
+                className={`btn ${onlyMyNotes ? "btn-primary" : "btn-secondary"}`}
+                onClick={() => {
+                  setOnlyMyNotes(!onlyMyNotes);
+                  setCurrentPage(1);
+                }}
+                title={onlyMyNotes ? "Switch to viewing all system notes" : "Click to view only your own notes"}
+              >
+                <User size={16} />
+                <span>{onlyMyNotes ? "Showing: Only My Notes" : "Only My Notes"}</span>
+              </button>
+            )}
+
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setEditingNote(null);
                 setIsModalOpen(true);
               }}
-              onDelete={(n) => setDeletingNote(n)}
-            />
-          ))}
+            >
+              <Plus size={18} />
+              <span>New Note</span>
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* Index & Optimization Technical Notice */}
+        <div className="aggregation-banner">
+          <ShieldCheck size={20} color="var(--primary)" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div style={{ fontSize: "0.85rem" }}>
+            <strong>Query & Indexing Strategy: </strong>
+            {isAdmin ? (
+              <span>
+                Admin list queries utilize the compound index <code>{`{ isDeleted: 1, createdAt: -1 }`}</code> with Mongoose author population.
+              </span>
+            ) : (
+              <span>
+                User queries are backed by compound indexes <code>{`{ userId: 1, createdAt: -1 }`}</code> and <code>{`{ _id: 1, userId: 1 }`}</code> for optimal tenant isolation.
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Search Bar & Filter Toggle */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1.5rem",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", flex: 1, maxWidth: 650 }}>
+            <div style={{ position: "relative", width: "100%", maxWidth: 360 }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search notes by title or content..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search
+                size={16}
+                color="var(--text-muted)"
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}
+              />
+            </div>
+
+            {isAdmin && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  padding: "0.2rem",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <button
+                  type="button"
+                  className={`btn btn-sm ${!onlyMyNotes ? "btn-primary" : "btn-ghost"}`}
+                  onClick={() => {
+                    setOnlyMyNotes(false);
+                    setCurrentPage(1);
+                  }}
+                  style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+                >
+                  <Layers size={13} />
+                  <span>All Notes</span>
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${onlyMyNotes ? "btn-primary" : "btn-ghost"}`}
+                  onClick={() => {
+                    setOnlyMyNotes(true);
+                    setCurrentPage(1);
+                  }}
+                  style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+                >
+                  <User size={13} />
+                  <span>Only My Notes</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            Showing <strong>{displayedNotes.length}</strong> of <strong>{totalCount}</strong> notes
+          </div>
+        </div>
+
+        {/* Notes Grid */}
+        {loading && notes.length === 0 ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: "4rem 0" }}>
+            <div className="spinner" style={{ width: 32, height: 32 }} />
+          </div>
+        ) : displayedNotes.length === 0 ? (
+          <div
+            className="card"
+            style={{
+              textAlign: "center",
+              padding: "4rem 2rem",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: "var(--radius-full)",
+                background: "rgba(99, 102, 241, 0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--primary)",
+                marginBottom: "1rem",
+              }}
+            >
+              <FileText size={28} />
+            </div>
+            <h3>{onlyMyNotes ? "No personal notes found" : "No notes found"}</h3>
+            <p style={{ maxWidth: 360, marginTop: "0.5rem" }}>
+              {onlyMyNotes
+                ? "You have not authored any personal notes yet with your admin account. Click below to create your first note."
+                : searchQuery
+                ? "No notes matched your search query."
+                : "You have not created any notes yet. Click below to add your first note."}
+            </p>
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: "1.25rem" }}
+              onClick={() => {
+                setEditingNote(null);
+                setIsModalOpen(true);
+              }}
+            >
+              <Plus size={16} />
+              <span>Create First Note</span>
+            </button>
+          </div>
+        ) : (
+          <div className="notes-grid">
+            {displayedNotes.map((note) => (
+              <NoteCard
+                key={note._id}
+                note={note}
+                isAdmin={isAdmin}
+                onEdit={(n) => {
+                  setEditingNote(n);
+                  setIsModalOpen(true);
+                }}
+                onDelete={(n) => setDeletingNote(n)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Pagination Controls */}
