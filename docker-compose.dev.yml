@@ -1,0 +1,25 @@
+services:
+  frontend-dev:
+    container_name: careguide-frontend-dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - BACKEND_URL=${BACKEND_URL:-http://host.docker.internal:5000}
+    restart: unless-stopped
+    networks:
+      - careguide-network
+
+networks:
+  careguide-network:
+    name: careguide-network
+    driver: bridge
